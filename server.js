@@ -1,6 +1,5 @@
 const express = require('express');
 const fs = require('fs');
-const crypto = require('crypto');
 const cors = require('cors');
 
 const app = express();
@@ -25,21 +24,26 @@ function saveLinks(links) {
   fs.writeFileSync(LINKS_FILE, JSON.stringify(links, null, 2));
 }
 
-// Endpoint pour créer un shortlink
+// POST /shorten
 app.post('/shorten', (req, res) => {
-  const { url } = req.body;
-  if (!url) return res.status(400).json({ error: 'URL manquante.' });
+  const { url, customCode } = req.body;
 
-  const code = crypto.randomBytes(3).toString('hex');
+  if (!url || !customCode) return res.status(400).json({ error: 'URL ou customCode manquant.' });
+
   const links = readLinks();
-  links[code] = url;  // On sauvegarde l'URL EXACTE (avec paramètres si besoin)
+
+  if (links[customCode]) {
+    return res.status(409).json({ error: 'Ce lien existe déjà.' });
+  }
+
+  links[customCode] = url;
   saveLinks(links);
 
   const baseUrl = process.env.BASE_URL || 'https://instantmedia-share.onrender.com';
-  res.json({ shortUrl: `${baseUrl}/${code}` });
+  res.json({ shortUrl: `${baseUrl}/${customCode}` });
 });
 
-// Endpoint pour rediriger en gardant tous les paramètres
+// Redirection GET
 app.get('/:code', (req, res) => {
   const code = req.params.code;
   const links = readLinks();
@@ -53,7 +57,7 @@ app.get('/:code', (req, res) => {
   res.status(404).send('Lien introuvable.');
 });
 
-// Lancement serveur
+// Démarrer le serveur
 app.listen(PORT, () => {
   console.log(`🚀 Serveur Shortlink instantmedia-share actif sur port ${PORT}`);
 });
