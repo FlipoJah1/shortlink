@@ -11,53 +11,49 @@ const LINKS_FILE = './links.json';
 app.use(cors());
 app.use(express.json());
 
-// Chargement ou création du fichier links.json
+// Initialisation
 if (!fs.existsSync(LINKS_FILE)) {
   fs.writeFileSync(LINKS_FILE, '{}');
 }
 
-// Fonction pour lire tous les liens
+// Fonctions utilitaires
 function readLinks() {
-  const data = fs.readFileSync(LINKS_FILE);
-  return JSON.parse(data);
+  return JSON.parse(fs.readFileSync(LINKS_FILE));
 }
 
-// Fonction pour sauvegarder tous les liens
 function saveLinks(links) {
   fs.writeFileSync(LINKS_FILE, JSON.stringify(links, null, 2));
 }
 
-// Route POST pour créer un shortlink
+// Endpoint pour créer un shortlink
 app.post('/shorten', (req, res) => {
   const { url } = req.body;
-  if (!url) {
-    return res.status(400).json({ error: 'URL manquante.' });
-  }
+  if (!url) return res.status(400).json({ error: 'URL manquante.' });
 
-  const code = crypto.randomBytes(3).toString('hex'); // Exemple : 6 caractères
+  const code = crypto.randomBytes(3).toString('hex');
   const links = readLinks();
-  links[code] = url;
+  links[code] = url;  // On sauvegarde l'URL EXACTE (avec paramètres si besoin)
   saveLinks(links);
 
-  const baseUrl = process.env.BASE_URL || `https://ton-shortlink.onrender.com`;
-  const shortUrl = `${baseUrl}/${code}`;
-
-  res.json({ shortUrl });
+  const baseUrl = process.env.BASE_URL || 'https://instantmedia-share.onrender.com';
+  res.json({ shortUrl: `${baseUrl}/${code}` });
 });
-// Route GET pour rediriger vers l'URL originale
+
+// Endpoint pour rediriger en gardant tous les paramètres
 app.get('/:code', (req, res) => {
-  const { code } = req.params;
+  const code = req.params.code;
   const links = readLinks();
+  const target = links[code];
 
-  const originalUrl = links[code];
-  if (originalUrl) {
-    res.redirect(originalUrl);
-  } else {
-    res.status(404).send('Lien introuvable.');
+  if (target) {
+    console.log(`🔗 Redirection vers : ${target}`);
+    return res.redirect(target);
   }
+
+  res.status(404).send('Lien introuvable.');
 });
 
-// Démarrage du serveur
+// Lancement serveur
 app.listen(PORT, () => {
-  console.log(`🚀 Serveur ShortLink en ligne sur le port ${PORT}`);
+  console.log(`🚀 Serveur Shortlink instantmedia-share actif sur port ${PORT}`);
 });
